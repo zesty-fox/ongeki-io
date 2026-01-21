@@ -1,0 +1,29 @@
+name: Build DLL
+
+on: [push]
+
+jobs:
+    build:
+        runs-on: windows-latest # 必须使用 Windows，因为是 .NET Framework 4.7.2
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Setup NuGet
+              uses: NuGet/setup-nuget@v1.0.5
+
+            - name: Restore NuGet Packages
+              run: nuget restore MU3Input.sln # 如果只有csproj，尝试 nuget restore MU3Input.csproj
+
+            - name: Setup MSBuild
+              uses: microsoft/setup-msbuild@v1.1
+
+            - name: Build
+              # 使用 csproj 中定义的 Release|x64 配置 [cite: 2]
+              run: msbuild MU3Input.csproj /p:Configuration=Release /p:Platform=x64
+
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: Compiled-DLLs
+                  path: bin/x64/Release/
