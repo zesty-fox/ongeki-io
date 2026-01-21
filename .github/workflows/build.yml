@@ -1,39 +1,55 @@
 name: Build DLL
 
-on: [push, workflow_dispatch] # 加上 workflow_dispatch 允许你在网页上手动点按钮触发
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
-    build:
-        runs-on: windows-latest
+  build:
+    runs-on: windows-latest
 
-        steps:
-            # 1. 检出代码 (升级到 v4)
-            - name: Checkout Code
-              uses: actions/checkout@v4
+    steps:
+      # 1. 检出代码
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-            # 2. 配置 MSBuild 环境 (升级到 v2)
-            - name: Setup MSBuild
-              uses: microsoft/setup-msbuild@v2
+      # 2. 配置 MSBuild 环境
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-            # 3. 配置 NuGet (升级到 v2)
-            - name: Setup NuGet
-              uses: NuGet/setup-nuget@v2
+      # 3. 配置 NuGet
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
-            # 4. 还原依赖
-            # 注意：针对 .NET Framework 4.7.2 + DllExport，直接用 nuget restore 最稳妥
-            - name: Restore NuGet Packages
-              run: nuget restore MU3Input.csproj
+      # 4. 还原 NuGet 包（针对整个解决方案）
+      - name: Restore NuGet Packages
+        run: nuget restore MU3Input.sln
 
-            # 5. 执行编译
-            # 你的 csproj 中定义了 <PlatformTarget>x64</PlatformTarget>
-            - name: Build Solution
-              run: msbuild MU3Input.csproj -p:Configuration=Release -p:Platform=x64
+      # 5. 构建解决方案（Release x64）
+      - name: Build Solution
+        run: msbuild MU3Input.sln /p:Configuration=Release /p:Platform=x64 /p:AllowUnsafeBlocks=true
 
-            # 6. 上传产物 (升级到 v4)
-            # v4 不再自动压缩为 zip，但下载时 GitHub 会自动打包
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: MU3Input-Release-x64
-                  path: bin/x64/Release/
-                  if-no-files-found: error
+      # 6. 列出生成的文件（用于调试）
+      - name: List Build Output
+        run: |
+          echo "=== Build Output Files ==="
+          Get-ChildItem -Path MU3Input\bin\x64\Release -Recurse | Select-Object FullName
+
+      # 7. 上传 DLL 产物
+      - name: Upload DLL Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MU3Input-Release-x64
+          path: MU3Input\bin\x64\Release\*.dll
+          if-no-files-found: error
+
+      # 8. 上传完整构建产物（包括 PDB 等）
+      - name: Upload Full Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MU3Input-Full-Release-x64
+          path: MU3Input\bin\x64\Release\
+          if-no-files-found: error
